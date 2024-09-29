@@ -1,0 +1,38 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Survey Results</title>
+</head>
+<body>
+    <h1>Результаты опросов</h1>
+    <div id="results"></div>
+
+    <script>
+        async function loadResults() {
+            const response = await fetch('/admin/results');
+            const results = await response.json();
+            const resultsDiv = document.getElementById('results');
+            resultsDiv.innerHTML = '';
+
+            results.forEach(result => {
+                const resultDiv = document.createElement('div');
+                resultDiv.innerHTML = `
+                        <h2>Опрос: ${result.SurveyId}</h2>
+                        <p>ФИО: ${result.FullName}</p>
+                        <p>Номер телефона: ${result.PhoneNumber}</p>
+                        <ul>
+                            ${result.UserAnswers.map(answer => `
+                                <li>Вопрос: ${answer.QuestionId}, Ответ: ${answer.AnswerId}</li>
+                            `).join('')}
+                        </ul>
+                    `;
+                resultsDiv.appendChild(resultDiv);
+            });
+        }
+
+        loadResults();
+    </script>
+</body>
+</html>

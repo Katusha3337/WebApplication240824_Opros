@@ -1,0 +1,102 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Surveys</title>
+</head>
+<body>
+    <h1>Опросы</h1>
+    <input type="text" id="search" placeholder="Поиск опросов..." oninput="searchSurveys()" />
+    <div id="surveys"></div>
+
+    <script>
+        async function loadSurveys() {
+            const response = await fetch('/surveys');
+            const surveys = await response.json();
+            displaySurveys(surveys);
+        }
+
+        function displaySurveys(surveys) {
+            const surveysDiv = document.getElementById('surveys');
+            surveysDiv.innerHTML = '';
+
+            surveys.forEach(survey => {
+                const surveyDiv = document.createElement('div');
+                surveyDiv.innerHTML = `
+                        <h2>${survey.title}</h2>
+                        <p>${survey.description}</p>
+                        <p>Количество вопросов: ${survey.questions.length}</p>
+                        <button onclick="startSurvey(${survey.id})">Пройти опрос</button>
+                    `;
+                surveysDiv.appendChild(surveyDiv);
+            });
+        }
+
+        async function searchSurveys() {
+            const query = document.getElementById('search').value.toLowerCase();
+            const response = await fetch('/surveys');
+            const surveys = await response.json();
+            const filteredSurveys = surveys.filter(survey =>
+                survey.title.toLowerCase().includes(query) ||
+                survey.description.toLowerCase().includes(query)
+            );
+            displaySurveys(filteredSurveys);
+        }
+
+        async function startSurvey(id) {
+            const response = await fetch(`/surveys/${id}`);
+            const survey = await response.json();
+            const surveysDiv = document.getElementById('surveys');
+            surveysDiv.innerHTML = `
+                    <h1>${survey.title}</h1>
+                    <p>${survey.description}</p>
+                    <form id="surveyForm">
+                        <label>ФИО:</label>
+                        <input type="text" name="FullName" required />
+                        <label>Номер телефона:</label>
+                        <input type="text" name="PhoneNumber" required />
+                        ${survey.questions.map(q => `
+                            <div>
+                                <p>${q.text}</p>
+                                ${q.answers.map(a => `
+                                    <label>
+                                        <input type="radio" name="Question_${q.id}" value="${a.id}" required />
+                                        ${a.text}
+                                    </label>
+                                `).join('')}
+                            </div>
+                        `).join('')}
+                        <button type="submit">Отправить</button>
+                    </form>
+                `;
+
+            document.getElementById('surveyForm').onsubmit = async function (event) {
+                event.preventDefault();
+                const formData = new FormData(event.target);
+                const result = {
+                    FullName: formData.get('FullName'),
+                    PhoneNumber: formData.get('PhoneNumber'),
+                    UserAnswers: survey.questions.map(q => ({
+                        QuestionId: q.id,
+                        AnswerId: parseInt(formData.get(`Question_${q.id}`))
+                    }))
+                };
+
+                await fetch(`/surveys/${id}/submit`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(result)
+                });
+
+                alert('Спасибо за участие в опросе!');
+                loadSurveys();
+            };
+        }
+
+        loadSurveys();
+    </script>
+</body>
+</html>
